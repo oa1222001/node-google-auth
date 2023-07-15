@@ -5,22 +5,54 @@ const cookieParser = require("cookie-parser");
 
 require("dotenv").config();
 
+app.use(express.json())
 app.use(cookieParser());
+
 
 const { OAuth2Client } = require("google-auth-library");
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const REDIRECT_URI = "http://localhost:3000/auth/google/callback";
+const REDIRECT_URI = "http://localhost:8080/auth/google/callback";
 
 const client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URI);
+
+app.post('/verify-token', async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    // Verify the ID token
+    const ticket = await client.verifyIdToken({
+      idToken: token,
+      audience: CLIENT_ID,
+    });
+
+    // Extract the user information from the verified token
+    const payload = ticket.getPayload();
+    const userId = payload.sub;
+    const userEmail = payload.email;
+    console.log(payload);
+
+
+    // Do further processing or authentication with the obtained user information
+
+    // Respond with a success message
+    res.json({ success: true });
+  } catch (error) {
+    // Handle any verification errors
+    console.error('Token verification error:', error);
+    res.status(400).json({ success: false, error: 'Invalid token' });
+  }
+});
+
 
 // callback from google
 app.get("/auth/google/callback", async (req, res) => {
   const { code } = req.query;
-
+  // console.log(req.query);
   try {
     const { tokens } = await client.getToken(code);
+    console.log('tototo token :', tokens);
 
     client.setCredentials(tokens);
 
@@ -30,7 +62,7 @@ app.get("/auth/google/callback", async (req, res) => {
       method: "GET",
     });
 
-    // console.log("google data : ", data);
+    console.log("google data : ", data);
 
     // use JWT to create token and store it in session or cookies
     const token = jwt.sign(
@@ -101,4 +133,4 @@ app.get("/logout", (req, res) => {
   res.end();
 });
 
-app.listen(3000, () => console.log("Listening at port 3000"));
+app.listen(8080, () => console.log("Listening at port 8080"));
